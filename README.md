@@ -32,6 +32,7 @@ $_ENV['DB_HOST'] = 'localhost';
 $_ENV['DB_NAME'] = 'meu_banco';
 $_ENV['DB_USER'] = 'usuario';
 $_ENV['DB_PASS'] = 'senha';
+$_ENV['DB_PORT'] = '3306'; // Opcional, padrão é 3306
 $_ENV['DB_TYPE'] = 'MySQL'; // Opcional, padrão é MySQL
 
 // Ou via array de configuração
@@ -40,6 +41,7 @@ $config = [
     'DB_NAME' => 'meu_banco',
     'DB_USER' => 'usuario',
     'DB_PASS' => 'senha',
+    'DB_PORT' => '3306', // Opcional, padrão é 3306
     'DB_TYPE' => 'MySQL'
 ];
 ```

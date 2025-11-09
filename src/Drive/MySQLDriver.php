@@ -21,10 +21,11 @@ class MySQLDriver {
         $name =  $object['DB_NAME'];
         $user =  $object['DB_USER'];
         $pass =  $object['DB_PASS'];
+        $port = isset($object['DB_PORT']) ? $object['DB_PORT'] : 3306;
         
         try {
             if(!isset(self::$conection)){
-                self::$handle  = new PDO("mysql:host={$host};dbname={$name};port=3306;",$user,$pass, array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8'"));
+                self::$handle  = new PDO("mysql:host={$host};dbname={$name};port={$port};",$user,$pass, array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8'"));
                 self::$conection = new MySQLDriver();
             }
         } catch (\Throwable $exception) {
