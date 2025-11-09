@@ -258,7 +258,7 @@ Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICE
 
 ## Autor
 
-Desenvolvido por Felipe Machado
+Desenvolvido por Felipe Machado Hillesheim
 
 ## Roadmap
 
