@@ -1,0 +1,32 @@
+{
+    "name": "darkeght/buildcake-sqlkit",
+    "description": "Camada SQL simples com drivers (MySQL agora, Oracle depois) e compilador de query com validação automática de tipos.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "sql",
+        "database",
+        "mysql",
+        "pdo",
+        "query-builder",
+        "orm",
+        "database-abstraction"
+    ],
+    "autoload": {
+        "psr-4": {
+            "BuildCake\\SqlKit\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "DesenvolvimentoEasingJob",
+            "email": "71417413+DesenvolvimentoEasingJob@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.0",
+        "ext-pdo": "*"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
