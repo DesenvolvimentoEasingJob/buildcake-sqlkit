@@ -3,6 +3,7 @@
 namespace BuildCake\SqlKit\Query;
 
 use BuildCake\SqlKit\Sql;
+use BuildCake\SqlKit\Cache\QueryCache;
 use DateTime;
 use Exception;
 
@@ -502,9 +503,10 @@ class BuildQuery
 
     //build query
     //query example "SELECT u.queryfilter FROM profilefilter u WHERE u.profile = :userprofile AND u.filename = :requestfile {filter}"
-    public function runQuery($query, $params = null) {
-        $formatedParms  = [];
+    public function runQuery($query, $params = null, $ignoreCache = false) {
         $params = $params ?? [];
+        
+        $formatedParms  = [];
         
         /*if ($params === null || empty($params)) {
             $query = str_replace("{filter}", "", $query);
@@ -517,9 +519,26 @@ class BuildQuery
         }
 
         if (!isset($GLOBALS['currentUser'])) {
-            return Sql::Call()->SelectParms(
-                $this->filterParamsByQuery($query,$formatedParms),
-                                           $query);
+            $finalQuery = str_replace("{filter}", "", $query);
+            
+            // Verifica cache se não estiver ignorando (baseado na query final)
+            if (!$ignoreCache && QueryCache::isCacheEnabled()) {
+                $cachedResult = QueryCache::getCache($finalQuery, $params);
+                if ($cachedResult !== null) {
+                    return $cachedResult;
+                }
+            }
+            
+            $result = Sql::Call()->SelectParms(
+                $this->filterParamsByQuery($finalQuery,$formatedParms),
+                $finalQuery);
+            
+            // Armazena no cache se não estiver ignorando
+            if (!$ignoreCache && QueryCache::isCacheEnabled()) {
+                QueryCache::setCache($finalQuery, $params, $result);
+            }
+            
+            return $result;
         }
 
         $user = $GLOBALS['currentUser'];
@@ -604,8 +623,24 @@ class BuildQuery
             }
         }
 
-        $query = str_replace("{filter}", "", $query);
-        return Sql::Call()->SelectParms($this->filterParamsByQuery($query,$formatedParms),$query);
+        $finalQuery = str_replace("{filter}", "", $query);
+        
+        // Verifica cache se não estiver ignorando (baseado na query final)
+        if (!$ignoreCache && QueryCache::isCacheEnabled()) {
+            $cachedResult = QueryCache::getCache($finalQuery, $params);
+            if ($cachedResult !== null) {
+                return $cachedResult;
+            }
+        }
+        
+        $result = Sql::Call()->SelectParms($this->filterParamsByQuery($finalQuery,$formatedParms),$finalQuery);
+        
+        // Armazena no cache se não estiver ignorando
+        if (!$ignoreCache && QueryCache::isCacheEnabled()) {
+            QueryCache::setCache($finalQuery, $params, $result);
+        }
+        
+        return $result;
     }
 
     public function runPost($table, $object, $user = null) {

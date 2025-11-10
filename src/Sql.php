@@ -4,6 +4,7 @@ namespace BuildCake\SqlKit;
 
 use BuildCake\SqlKit\Drive\MySQLDriver;
 use BuildCake\SqlKit\Query\BuildQuery;
+use BuildCake\SqlKit\Cache\QueryCache;
 use PDOException;
 use Exception;
 
@@ -17,6 +18,37 @@ class Sql
    
     public static $conection;
 	public static $single;
+    
+    /**
+     * Configura o sistema de cache
+     * @param array $config Configurações do cache:
+     *   - 'enabled' (bool): Habilita/desabilita cache (padrão: true)
+     *   - 'hours' (int): Duração do cache em horas (padrão: 1)
+     *   - 'dir' (string): Diretório para armazenar cache (padrão: sys_get_temp_dir()/buildcake-sqlkit-cache)
+     */
+    public static function configureCache($config = [])
+    {
+        if (isset($config['enabled'])) {
+            QueryCache::setCacheEnabled($config['enabled']);
+        }
+        
+        if (isset($config['hours'])) {
+            QueryCache::setCacheHours($config['hours']);
+        }
+        
+        if (isset($config['dir'])) {
+            QueryCache::setCacheDir($config['dir']);
+        }
+    }
+    
+    /**
+     * Limpa todo o cache armazenado
+     * @return bool
+     */
+    public static function clearCache()
+    {
+        return QueryCache::clearCache();
+    }
     
     public static function Call($config = null,$server = ""){
 
@@ -147,10 +179,10 @@ class Sql
         return $query;
     }
     
-    static function runQuery($query, $params = null) {
+    static function runQuery($query, $params = null, $ignoreCache = false) {
         $buildQuery = new BuildQuery();
         $query = Sql::Call()->sanitizeQuery($query);
-        return $buildQuery->runQuery($query, $params);
+        return $buildQuery->runQuery($query, $params, $ignoreCache);
     }
 
     static function runPost($table, $object, $user = null) {
