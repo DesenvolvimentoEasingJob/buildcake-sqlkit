@@ -1,5 +1,5 @@
 {
-    "name": "desenvolvimento-easing-job/buildcake-sqlkit",
+    "name": "buildcake-sqlkit",
     "description": "Camada SQL simples com drivers (MySQL agora, Oracle depois) e compilador de query com validação automática de tipos.",
     "type": "library",
     "license": "MIT",
