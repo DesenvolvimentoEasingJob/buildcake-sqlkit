@@ -3,7 +3,11 @@
  * Teste Completo de Performance - Comparação CRUD Completo
  * 
  * Compara performance entre métodos da lib vs comandos SQL puros:
- * - SELECT: runQuery vs PureCommand
+ * - SELECT: 
+ *   - PureCommand (SQL puro) - baseline
+ *   - runQuery sem cache - overhead da lib
+ *   - runQuery com cache (primeira execução) - custo do cache
+ *   - runQuery com cache (cache hit) - ganho do cache
  * - INSERT: runPost vs INSERT puro
  * - UPDATE: runPut vs UPDATE puro
  * - DELETE: runDelet vs DELETE puro
@@ -146,16 +150,16 @@ echo "EXECUTANDO TESTES CRUD\n";
 echo str_repeat("=", 60) . "\n\n";
 
 // ============================================
-// SELECT - runQuery vs PureCommand
+// SELECT - PureCommand vs runQuery sem cache vs runQuery com cache
 // ============================================
-echo "📊 SELECT - Comparação\n";
+echo "📊 SELECT - Comparação Completa\n";
 echo str_repeat("-", 60) . "\n";
 
 $selectQuery = "SELECT * FROM benchmark_select WHERE categoria = :categoria AND ativo = :ativo AND idade BETWEEN :idade_min AND :idade_max LIMIT 100";
 $selectParams = ['categoria' => 'A', 'ativo' => 1, 'idade_min' => 25, 'idade_max' => 45];
 $pureSelect = "SELECT * FROM benchmark_select WHERE categoria = 'A' AND ativo = 1 AND idade BETWEEN 25 AND 45 LIMIT 100";
 
-// PureCommand SELECT
+// 1. PureCommand SELECT (baseline - SQL puro)
 Sql::configureCache(['enabled' => false]);
 Sql::clearCache();
 
@@ -168,20 +172,53 @@ $time = measureTime(function() use ($pureSelect, $numIteracoes) {
     }
 });
 $results['SELECT_Pure'] = $time;
-echo "PureCommand: ";
+echo "1. PureCommand (SQL puro): ";
 printResult($time, $numIteracoes);
 
-// runQuery SELECT sem cache
+// 2. runQuery SELECT sem cache (para verificar overhead da lib)
+Sql::configureCache(['enabled' => false]);
+Sql::clearCache();
+
 $time = measureTime(function() use ($selectQuery, $selectParams, $numIteracoes) {
     for ($i = 0; $i < $numIteracoes; $i++) {
-        Sql::runQuery($selectQuery, $selectParams, true);
+        Sql::runQuery($selectQuery, $selectParams, true); // ignoreCache = true
     }
 });
-$results['SELECT_runQuery'] = $time;
-echo "runQuery: ";
+$results['SELECT_runQuery_NoCache'] = $time;
+echo "2. runQuery sem cache: ";
 printResult($time, $numIteracoes);
 $overhead = (($time - $results['SELECT_Pure']) / $results['SELECT_Pure']) * 100;
-echo "   Overhead: " . number_format($overhead, 2) . "%\n";
+echo "   Overhead vs SQL puro: " . number_format($overhead, 2) . "%\n";
+
+// 3. runQuery SELECT com cache (primeira execução - sem cache hit)
+Sql::configureCache(['enabled' => true]);
+Sql::clearCache(); // Limpa cache antes do teste
+
+$time = measureTime(function() use ($selectQuery, $selectParams, $numIteracoes) {
+    for ($i = 0; $i < $numIteracoes; $i++) {
+        Sql::runQuery($selectQuery, $selectParams, false); // ignoreCache = false
+    }
+});
+$results['SELECT_runQuery_Cache_First'] = $time;
+echo "3. runQuery com cache (primeira execução): ";
+printResult($time, $numIteracoes);
+$overhead = (($time - $results['SELECT_Pure']) / $results['SELECT_Pure']) * 100;
+echo "   Overhead vs SQL puro: " . number_format($overhead, 2) . "%\n";
+
+// 4. runQuery SELECT com cache (segunda execução - com cache hit)
+// O cache já foi populado na execução anterior
+$time = measureTime(function() use ($selectQuery, $selectParams, $numIteracoes) {
+    for ($i = 0; $i < $numIteracoes; $i++) {
+        Sql::runQuery($selectQuery, $selectParams, false); // ignoreCache = false
+    }
+});
+$results['SELECT_runQuery_Cache_Hit'] = $time;
+echo "4. runQuery com cache (cache hit): ";
+printResult($time, $numIteracoes);
+$speedup = (($results['SELECT_runQuery_Cache_First'] - $time) / $results['SELECT_runQuery_Cache_First']) * 100;
+echo "   Ganho vs primeira execução: " . number_format($speedup, 2) . "% mais rápido\n";
+$overhead = (($time - $results['SELECT_Pure']) / $results['SELECT_Pure']) * 100;
+echo "   Overhead vs SQL puro: " . number_format($overhead, 2) . "%\n";
 
 // ============================================
 // INSERT - runPost vs INSERT puro
@@ -326,11 +363,28 @@ echo "\n" . str_repeat("=", 60) . "\n";
 echo "RESUMO COMPARATIVO CRUD\n";
 echo str_repeat("=", 60) . "\n\n";
 
-printf("%-20s | %-20s | %12s | %12s | %12s\n", "Operação", "Método", "Total (ms)", "Médio (ms)", "Ops/Seg");
-echo str_repeat("-", 80) . "\n";
+printf("%-25s | %-25s | %12s | %12s | %12s\n", "Operação", "Método", "Total (ms)", "Médio (ms)", "Ops/Seg");
+echo str_repeat("-", 95) . "\n";
 
+// SELECT - múltiplas variações
+$selectKeys = [
+    'SELECT_Pure' => 'SQL Puro',
+    'SELECT_runQuery_NoCache' => 'runQuery (sem cache)',
+    'SELECT_runQuery_Cache_First' => 'runQuery (cache 1ª exec)',
+    'SELECT_runQuery_Cache_Hit' => 'runQuery (cache hit)'
+];
+
+foreach ($selectKeys as $key => $label) {
+    if (isset($results[$key])) {
+        $timeMs = $results[$key];
+        $avg = $timeMs / $numIteracoes;
+        $ops = 1000 / $avg;
+        printf("%-25s | %-25s | %12.2f | %12.4f | %12.0f\n", "SELECT", $label, $timeMs, $avg, $ops);
+    }
+}
+
+// Outras operações
 $operations = [
-    'SELECT' => ['Pure', 'runQuery'],
     'INSERT' => ['Pure', 'runPost'],
     'UPDATE' => ['Pure', 'runPut'],
     'DELETE' => ['Pure', 'runDelet']
@@ -344,18 +398,44 @@ foreach ($operations as $op => $methods) {
             $avg = $timeMs / $numIteracoes;
             $ops = 1000 / $avg;
             $methodName = $method === 'Pure' ? 'SQL Puro' : $method;
-            printf("%-20s | %-20s | %12.2f | %12.4f | %12.0f\n", $op, $methodName, $timeMs, $avg, $ops);
+            printf("%-25s | %-25s | %12.2f | %12.4f | %12.0f\n", $op, $methodName, $timeMs, $avg, $ops);
         }
     }
 }
 
-echo "\n" . str_repeat("-", 80) . "\n";
-echo "ANÁLISE DE OVERHEAD\n";
-echo str_repeat("-", 80) . "\n\n";
+echo "\n" . str_repeat("-", 95) . "\n";
+echo "ANÁLISE DE PERFORMANCE - SELECT\n";
+echo str_repeat("-", 95) . "\n\n";
+
+if (isset($results['SELECT_Pure']) && isset($results['SELECT_runQuery_NoCache'])) {
+    $overhead = (($results['SELECT_runQuery_NoCache'] - $results['SELECT_Pure']) / $results['SELECT_Pure']) * 100;
+    $status = $overhead > 30 ? "⚠️" : ($overhead > 15 ? "⚡" : "✅");
+    echo sprintf("runQuery sem cache vs SQL puro: %6.2f%% overhead %s\n", $overhead, $status);
+}
+
+if (isset($results['SELECT_runQuery_Cache_First']) && isset($results['SELECT_runQuery_NoCache'])) {
+    $overhead = (($results['SELECT_runQuery_Cache_First'] - $results['SELECT_runQuery_NoCache']) / $results['SELECT_runQuery_NoCache']) * 100;
+    echo sprintf("runQuery com cache (1ª exec) vs sem cache: %6.2f%% overhead (custo do cache)\n", $overhead);
+}
+
+if (isset($results['SELECT_runQuery_Cache_Hit']) && isset($results['SELECT_runQuery_Cache_First'])) {
+    $speedup = (($results['SELECT_runQuery_Cache_First'] - $results['SELECT_runQuery_Cache_Hit']) / $results['SELECT_runQuery_Cache_First']) * 100;
+    echo sprintf("Ganho do cache (hit vs 1ª exec): %6.2f%% mais rápido ✅\n", $speedup);
+}
+
+if (isset($results['SELECT_Pure']) && isset($results['SELECT_runQuery_Cache_Hit'])) {
+    $overhead = (($results['SELECT_runQuery_Cache_Hit'] - $results['SELECT_Pure']) / $results['SELECT_Pure']) * 100;
+    $status = $overhead < -10 ? "✅" : ($overhead < 10 ? "⚡" : "⚠️");
+    echo sprintf("runQuery com cache (hit) vs SQL puro: %6.2f%% overhead %s\n", $overhead, $status);
+}
+
+echo "\n" . str_repeat("-", 95) . "\n";
+echo "ANÁLISE DE OVERHEAD - OUTRAS OPERAÇÕES\n";
+echo str_repeat("-", 95) . "\n\n";
 
 foreach ($operations as $op => $methods) {
     $pureKey = "{$op}_Pure";
-    $libKey = "{$op}_" . ($methods[1] === 'runQuery' ? 'runQuery' : ($methods[1] === 'runPost' ? 'runPost' : ($methods[1] === 'runPut' ? 'runPut' : 'runDelet')));
+    $libKey = "{$op}_" . ($methods[1] === 'runPost' ? 'runPost' : ($methods[1] === 'runPut' ? 'runPut' : 'runDelet'));
     
     if (isset($results[$pureKey]) && isset($results[$libKey])) {
         $overhead = (($results[$libKey] - $results[$pureKey]) / $results[$pureKey]) * 100;
