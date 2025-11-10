@@ -13,7 +13,10 @@ Uma biblioteca PHP simples e poderosa para interagir com bancos de dados MySQL, 
 ## Instalação
 
 ```bash
-composer require darkeght/buildcake-sqlkit
+## Instalação
+
+composer require buildcake/sqlkit
+
 ```
 
 ## Requisitos
