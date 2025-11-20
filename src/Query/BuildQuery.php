@@ -510,7 +510,7 @@ class BuildQuery
         
         /*if ($params === null || empty($params)) {
             $query = str_replace("{filter}", "", $query);
-            return Sql::Call()->Select($query);
+            return Sql::Call()->Select($query); algum ajuste
         }*/
         
         foreach ($params as $key => $value) {
