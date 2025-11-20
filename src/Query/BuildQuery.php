@@ -559,13 +559,13 @@ class BuildQuery
 
         
 
-        if (isset($_GET["id"])) {
-            $id = $_GET["id"];
+        if (isset($params["id"])) {
+            $id = $params["id"];
             $query .= " {$conditionalInit} {$tablePrincipal}.id in ({$id})";
         }
 
-        if (isset($_GET["where"])) {
-            $where = explode("|", $_GET["where"]);
+        if (isset($params["where"])) {
+            $where = explode("|", $params["where"]);
             $stringContitional = " {$conditionalInit} (";
             $queryStringBuild = "";
 
@@ -579,8 +579,8 @@ class BuildQuery
             $queryStringBuild .= ")";
             $stringContitional = " AND (";
 
-            if(isset($_GET["and"])){
-            foreach ($_GET["and"] as $key => $baseValue) {
+            if(isset($params["and"])){
+            foreach ($params["and"] as $key => $baseValue) {
                 $and = explode("|", $baseValue);
 
                 foreach ($and as $key => $value) {
@@ -597,28 +597,28 @@ class BuildQuery
             $query = str_replace("{filter}", $queryStringBuild, $query);
         }
 
-        if (isset($_GET["order"]) && isset($_GET["ordination"])) {
-            $order = $_GET["order"];
-            $ordination = $_GET["ordination"];
+        if (isset($params["order"]) && isset($params["ordination"])) {
+            $order = $params["order"];
+            $ordination = $params["ordination"];
             $query .= " ORDER BY {$tablePrincipal}.{$order} {$ordination}";
         }
 
-        if (isset($_GET["like"]) && isset($_GET["value"])) {
-            $where = $_GET["like"];
-            $value = $_GET["value"];
+        if (isset($params["like"]) && isset($params["value"])) {
+            $where = $params["like"];
+            $value = $params["value"];
 
             $query .= "SELECT * 
                         FROM {$query} as tempLikeTerms 
                         WHERE tempLikeTerms.{$where} 
-                        LIKE '%{$value}%'";
+                        LIKE '{$value}'";
         }
 
-        if (isset($_GET["limit"])) {
-            $limit = $_GET["limit"];
+        if (isset($params["limit"])) {
+            $limit = $params["limit"];
             $query .= " LIMIT {$limit}";
 
-            if(isset($_GET["page"]) ){
-                $page = ($_GET["page"] * $_GET["limit2"]) - $_GET["limit2"];
+            if(isset($params["page"]) ){
+                $page = ($params["page"] * $params["limit2"]) - $params["limit2"];
                 $query .= " OFFSET {$page}";
             }
         }
