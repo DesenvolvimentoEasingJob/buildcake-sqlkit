@@ -166,13 +166,22 @@ class Sql
     private function sanitizeQuery($query) {
         // Remove múltiplos espaços e normaliza a string
         $query = preg_replace('/\s+/', ' ', trim($query));
-        
-        // Bloqueia uso de UNION, subqueries e outras palavras-chave perigosas
-        $forbidden = ['DELETE', 'ALTER', 'DROP', 'UPDATE', 'INSERT', 'UNION', '--', '#', '/*', '*/'];
-        
+    
+        // Palavras perigosas (somente palavra inteira)
+        $forbidden = ['DELETE', 'ALTER', 'DROP', 'UPDATE', 'CREATE', 'INSERT', 'UNION'];
+    
         foreach ($forbidden as $word) {
-            if (stripos($query, $word) !== false) {
+            // \b = boundary → match somente palavra isolada
+            if (preg_match('/\b' . preg_quote($word, '/') . '\b/i', $query)) {
                 throw new Exception("Uso de SQL não permitido: {$word}");
+            }
+        }
+    
+        // Tokens perigosos que não são palavras (tratamento especial)
+        $forbiddenTokens = ['--', '#', '/*', '*/'];
+        foreach ($forbiddenTokens as $token) {
+            if (stripos($query, $token) !== false) {
+                throw new Exception("Uso de SQL não permitido: {$token}");
             }
         }
     
