@@ -508,53 +508,32 @@ class BuildQuery
         
         $formatedParms  = [];
         
-        /*if ($params === null || empty($params)) {
+        if ($params === null || empty($params)) {
             $query = str_replace("{filter}", "", $query);
-            return Sql::Call()->Select($query); algum ajuste
-        }*/
+            return Sql::Call()->Select($query);
+        }
         
         foreach ($params as $key => $value) {
             $treatedValue = $this->treatQueryParamValue($value);
             array_push($formatedParms,['COLUMN_NAME' => $key, 'VALUE' => $treatedValue]);
         }
 
-        if (!isset($GLOBALS['currentUser'])) {
-            $finalQuery = str_replace("{filter}", "", $query);
-            
-            // Verifica cache se não estiver ignorando (baseado na query final)
-            if (!$ignoreCache && QueryCache::isCacheEnabled()) {
-                $cachedResult = QueryCache::getCache($finalQuery, $params);
-                if ($cachedResult !== null) {
-                    return $cachedResult;
-                }
-            }
-            
-            $result = Sql::Call()->SelectParms(
-                $this->filterParamsByQuery($finalQuery,$formatedParms),
-                $finalQuery);
-            
-            // Armazena no cache se não estiver ignorando
-            if (!$ignoreCache && QueryCache::isCacheEnabled()) {
-                QueryCache::setCache($finalQuery, $params, $result);
-            }
-            
-            return $result;
-        }
-
-        $user = $GLOBALS['currentUser'];
+        
 
         $tablePrincipal = $this->extrairTabelaPrincipal($query);
         $conditionalInit = $this->hasWhereClause($query)? " AND" : " WHERE";
 
+        if(isset($GLOBALS['currentUser'])) {
+            $user = $GLOBALS['currentUser'];
+            $userProfile = $user->role ?? 0;
+            $queryFiler = Sql::Call()->Select("SELECT u.queryfilter 
+                                                FROM profilefilter u 
+                                                WHERE u.profile = {$userProfile} 
+                                                AND u.tablename = '{$tablePrincipal}'");
 
-        $userProfile = $user->role ?? 0;
-        $queryFiler = Sql::Call()->Select("SELECT u.queryfilter 
-                                            FROM profilefilter u 
-                                            WHERE u.profile = {$userProfile} 
-                                            AND u.tablename = '{$tablePrincipal}'");
-
-        if ($queryFiler && isset($queryFiler[0]['queryfilter'])) {
-            $query =   $query . str_replace(":userid", $user->sub, $queryFiler[0]['queryfilter']);
+            if ($queryFiler && isset($queryFiler[0]['queryfilter'])) {
+                $query =   $query . str_replace(":userid", $user->sub, $queryFiler[0]['queryfilter']);
+            }
         }
 
         
@@ -613,32 +592,22 @@ class BuildQuery
                         LIKE '{$value}'";
         }
 
-        if (isset($params["limit"])) {
-            $limit = $params["limit"];
-            $query .= " LIMIT {$limit}";
+           
+        //limit and page
+        $limit = $params["limit"] ?? 100;
+        $limit = $limit > 1000 ? 1000 : $limit;
+        
+        $query .= " LIMIT {$limit}";
+        $pageNumber = $params["page"] ?? 1;
+        $limit2 = $params["limit2"] ?? 100;
 
-            if(isset($params["page"]) ){
-                $page = ($params["page"] * $params["limit2"]) - $params["limit2"];
-                $query .= " OFFSET {$page}";
-            }
-        }
+       
+        $page = ($pageNumber * $limit2) - $limit2;
+        $query .= " OFFSET {$page}";
 
         $finalQuery = str_replace("{filter}", "", $query);
-        
-        // Verifica cache se não estiver ignorando (baseado na query final)
-        if (!$ignoreCache && QueryCache::isCacheEnabled()) {
-            $cachedResult = QueryCache::getCache($finalQuery, $params);
-            if ($cachedResult !== null) {
-                return $cachedResult;
-            }
-        }
-        
         $result = Sql::Call()->SelectParms($this->filterParamsByQuery($finalQuery,$formatedParms),$finalQuery);
-        
-        // Armazena no cache se não estiver ignorando
-        if (!$ignoreCache && QueryCache::isCacheEnabled()) {
-            QueryCache::setCache($finalQuery, $params, $result);
-        }
+
         
         return $result;
     }
