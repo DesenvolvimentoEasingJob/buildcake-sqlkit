@@ -505,13 +505,8 @@ class BuildQuery
     //query example "SELECT u.queryfilter FROM profilefilter u WHERE u.profile = :userprofile AND u.filename = :requestfile {filter}"
     public function runQuery($query, $params = null, $ignoreCache = false) {
         $params = $params ?? [];
-        
         $formatedParms  = [];
         
-        if ($params === null || empty($params)) {
-            $query = str_replace("{filter}", "", $query);
-            return Sql::Call()->Select($query);
-        }
         
         foreach ($params as $key => $value) {
             $treatedValue = $this->treatQueryParamValue($value);
@@ -525,7 +520,7 @@ class BuildQuery
 
         if(isset($GLOBALS['currentUser'])) {
             $user = $GLOBALS['currentUser'];
-            $userProfile = $user->role ?? 0;
+            $userProfile = $user->role_id ?? 0;
             $queryFiler = Sql::Call()->Select("SELECT u.queryfilter 
                                                 FROM profilefilter u 
                                                 WHERE u.profile = {$userProfile} 
@@ -587,7 +582,7 @@ class BuildQuery
             $value = $params["value"];
 
             $query .= "SELECT * 
-                        FROM {$query} as tempLikeTerms 
+                        FROM ({$query}) as tempLikeTerms 
                         WHERE tempLikeTerms.{$where} 
                         LIKE '{$value}'";
         }
